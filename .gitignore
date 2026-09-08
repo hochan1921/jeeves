@@ -1,0 +1,6 @@
+# ユーザー情報はここにだけ置く。git には載せない。
+/data/
+
+# 各自のローカル設定
+.claude/settings.local.json
+.DS_Store
