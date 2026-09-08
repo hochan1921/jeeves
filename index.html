@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理票</title>
+<style>
+:root{
+  --bg:#faf8f4; --panel:#ffffff; --ink:#1d1b17; --muted:#847c6e; --line:#e7e1d6;
+  --shadow:0 1px 2px rgba(29,27,23,.05), 0 10px 28px rgba(29,27,23,.05);
+  --serif:"Hiragino Mincho ProN","Yu Mincho",YuMincho,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#131210; --panel:#1c1a17; --ink:#ece7de; --muted:#948c7e; --line:#2c2925;
+         --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.25); }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+     -webkit-font-smoothing:antialiased;line-height:1.6}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 20px 64px}
+
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+       padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:28px}
+h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;margin:0}
+.stamp{font-size:12px;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:7px}
+.dot{width:6px;height:6px;border-radius:50%;background:#6ea87f;opacity:.85}
+.dot.off{background:#c0554f}
+
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:22px}
+.col h2{font-family:var(--serif);font-size:14px;font-weight:600;letter-spacing:.18em;
+        margin:0 0 12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.col h2 b{font-family:var(--sans);font-weight:500;font-size:11px;letter-spacing:0;
+          color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:0 6px}
+.empty{font-size:13px;color:var(--muted);opacity:.6;padding:6px 2px}
+
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--d,#999);
+      border-radius:10px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dom{font-size:11px;letter-spacing:.08em;color:var(--d);font-weight:600}
+.id{font-size:11px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.card h3{font-size:16px;font-weight:600;margin:0 0 6px;line-height:1.45}
+.why{font-family:var(--serif);font-size:13px;color:var(--muted);margin:0 0 10px}
+.due{display:inline-block;font-size:11px;color:var(--muted);border:1px solid var(--line);
+     border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums}
+.due.over{color:#c0554f;border-color:#c0554f}
+.card.dim{opacity:.5}
+.card.dim h3{text-decoration:line-through;text-decoration-thickness:1px}
+
+.log{margin-top:40px;padding-top:22px;border-top:1px solid var(--line)}
+.log h2{font-family:var(--serif);font-size:14px;font-weight:600;letter-spacing:.18em;
+        margin:0 0 12px;color:var(--muted)}
+.log ul{list-style:none;margin:0;padding:0}
+.log li{display:flex;gap:12px;font-size:13px;padding:7px 2px;border-bottom:1px solid var(--line)}
+.log time{color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.log .lid{color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+
+.note{margin-top:34px;font-size:12px;color:var(--muted);opacity:.75}
+.err{background:var(--panel);border:1px solid #c0554f;border-radius:10px;padding:18px 20px;
+     font-size:13px;line-height:1.9}
+.err code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+     background:rgba(128,128,128,.14);padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>管 理 票</h1>
+    <div class="stamp"><span class="dot" id="dot"></span><span id="time">読込中</span></div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<script>
+const COLS = [
+  {key:'todo',  label:'こ れ か ら', always:true},
+  {key:'doing', label:'進 行 中',   always:true},
+  {key:'done',  label:'完 了'},
+  {key:'drop',  label:'見 送 り'},
+];
+const DOMAIN = {'健康':'#4d9a6c','仕事':'#4a7cb5','学び':'#8a6ab5','人':'#c4794a','お金':'#a8913f','遊び':'#c25f80'};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* tasks.md の中のパイプ表をすべて拾う */
+function tables(md){
+  const out=[]; let cur=null;
+  for (const raw of md.split(/\r?\n/)){
+    const t=raw.trim();
+    if (!t.startsWith('|')){ cur=null; continue; }
+    const cells=t.replace(/^\|/,'').replace(/\|$/,'').split('|').map(s=>s.trim());
+    if (cells.every(c=>/^:?-{2,}:?$/.test(c))) continue;
+    if (!cur){ cur={head:cells,rows:[]}; out.push(cur); } else cur.rows.push(cells);
+  }
+  return out.map(t=>t.rows.map(r=>Object.fromEntries(t.head.map((h,i)=>[h,r[i]??'']))));
+}
+const norm = s => String(s).replace(/[`\s]/g,'').toLowerCase();
+function overdue(s){
+  const m=String(s).match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/); if(!m) return false;
+  const t=new Date(); t.setHours(0,0,0,0);
+  return new Date(+m[1],+m[2]-1,+m[3]) < t;
+}
+
+function card(t){
+  const dom=t['領域']||'', color=DOMAIN[dom]||'#8b8378', st=norm(t['状態']);
+  const dim=(st==='done'||st==='drop'), due=t['期限']||'';
+  return `<article class="card${dim?' dim':''}" style="--d:${color}">
+    <div class="top"><span class="dom">${esc(dom)}</span><span class="id">#${esc(t['ID']||'')}</span></div>
+    <h3>${esc(t['タスク']||'')}</h3>
+    ${t['なぜやる']?`<p class="why">${esc(t['なぜやる'])}</p>`:''}
+    ${due?`<span class="due${!dim&&overdue(due)?' over':''}">${esc(due)}</span>`:''}
+  </article>`;
+}
+
+function render(md){
+  const ts=tables(md);
+  const tasks=(ts.find(t=>t[0]&&'状態' in t[0])||[]);
+  const logs =(ts.find(t=>t[0]&&'日付' in t[0])||[]);
+  const cols=COLS.map(c=>({...c, items:tasks.filter(t=>norm(t['状態'])===c.key)}))
+                 .filter(c=>c.always||c.items.length);
+  document.getElementById('main').innerHTML = `
+    <div class="board">${cols.map(c=>`<section class="col">
+      <h2>${c.label}<b>${c.items.length}</b></h2>
+      ${c.items.length?c.items.map(card).join(''):'<div class="empty">—</div>'}
+    </section>`).join('')}</div>
+    ${logs.length?`<section class="log"><h2>完 了 ロ グ</h2><ul>${logs.map(l=>
+      `<li><time>${esc(l['日付']||'')}</time><span class="lid">#${esc(l['ID']||'')}</span><span>${esc(l['ひとこと']||'')}</span></li>`
+    ).join('')}</ul></section>`:''}
+    <p class="note">data/tasks.md をそのまま映しています。書き換えは data/tasks.md で。</p>`;
+}
+
+function fail(){
+  document.getElementById('main').innerHTML = `<div class="err">
+    <b>data/tasks.md を読めませんでした。</b><br>
+    初回セットアップ：<code>mkdir -p data && cp -rn template/. data/</code><br>
+    起動：<code>python3 -m http.server 8765</code> → <code>http://localhost:8765</code><br>
+    （file:// で直接開くと読めません。かならずサーバー越しに）
+  </div>`;
+}
+
+let last=null;
+async function tick(){
+  const dot=document.getElementById('dot');
+  try{
+    const r=await fetch('data/tasks.md?_='+Date.now(),{cache:'no-store'});
+    if(!r.ok) throw 0;
+    const md=await r.text();
+    if(md!==last){ last=md; render(md); }
+    dot.classList.remove('off');
+    document.getElementById('time').textContent=
+      new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' 時点';
+  }catch(e){
+    dot.classList.add('off');
+    document.getElementById('time').textContent='未接続';
+    if(last===null) fail();
+  }
+}
+tick(); setInterval(tick,5000);
+</script>
+</body>
+</html>
