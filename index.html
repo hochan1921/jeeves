@@ -23,8 +23,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
        padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:28px}
 h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;margin:0}
-.stamp{font-size:12px;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:7px}
-.dot{width:6px;height:6px;border-radius:50%;background:#6ea87f;opacity:.85}
+.dot{width:6px;height:6px;border-radius:50%;background:#6ea87f;opacity:.85;
+     margin-left:auto;align-self:center}
 .dot.off{background:#c0554f}
 
 .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:22px}
@@ -74,6 +74,9 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .st{font-family:var(--sans);font-size:11px;letter-spacing:.06em;color:var(--muted);
     border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:none;cursor:pointer}
 .st:hover{color:var(--ink);border-color:var(--d,#8b8378)}
+.del{font-family:var(--sans);font-size:14px;line-height:1;color:var(--muted);background:none;
+     border:0;border-radius:4px;padding:1px 5px;cursor:pointer;opacity:.34}
+.del:hover{opacity:1;color:#c0554f;background:rgba(192,85,79,.1)}
 .add{font-family:var(--sans);font-size:12px;color:var(--muted);background:none;cursor:pointer;
      border:1px dashed var(--line);border-radius:9px;padding:8px 0;width:100%;margin-bottom:12px}
 .add:hover{color:var(--ink);border-color:var(--muted)}
@@ -92,7 +95,7 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 <div class="wrap">
   <header>
     <h1>管 理 票</h1>
-    <div class="stamp"><span class="dot" id="dot"></span><span id="time">読込中</span></div>
+    <span class="dot" id="dot" title="読込中"></span>
   </header>
   <main id="main"></main>
 </div>
@@ -160,7 +163,8 @@ function card(t){
     `data-field="${field}" contenteditable="true">${esc(val||ph)}</span>`;
   return `<article class="card${dim?' dim':''}" style="--d:${color}">
     <div class="top">${f('領域',dom,'領域','dom')}<span class="id">#${id}</span>
-      <button class="st" data-id="${id}" data-st="${esc(t['状態']||'todo')}">${esc(t['状態']||'todo')}</button></div>
+      <button class="st" data-id="${id}" data-st="${esc(t['状態']||'todo')}">${esc(t['状態']||'todo')}</button>
+      <button class="del" data-id="${id}" data-name="${esc(t['タスク']||'')}" title="この行を消す">×</button></div>
     <h3>${f('タスク',t['タスク']||'','（タスク）')}</h3>
     <p class="why">${f('なぜやる',t['なぜやる']||'','なぜやる')}</p>
     <span class="due${!dim&&overdue(due)?' over':''}">${f('期限',due,'期限')}</span>
@@ -226,6 +230,14 @@ function addRow(md){
   return {md:t.lines.join('\n'), id};
 }
 
+function dropRow(md, id){
+  const t=tasksTable(md); if(!t) return md;
+  for(let i=t.start;i<t.end;i++){
+    if(cells(t.lines[i])[0]===String(id)){ t.lines.splice(i,1); break; }
+  }
+  return t.lines.join('\n');
+}
+
 /* ---- 書き戻し。先に誰かが書いていたら、上書きせず読み直す ---- */
 let last=null, MD='', ETAG=null, focusId=null;
 
@@ -246,11 +258,11 @@ async function put(md){
   }catch(e){ toast('書き込めません。python3 server.py で起動していますか'); return false; }
 }
 
-async function commit(id, field, val){
-  const md=editCell(MD, id, field, val);
+async function apply(md){
   if(md===MD){ last=null; tick(); return; }
   await put(md);
 }
+const commit=(id, field, val)=>apply(editCell(MD, id, field, val));
 
 const main=document.getElementById('main');
 
@@ -259,6 +271,9 @@ main.addEventListener('click', e=>{
     const r=addRow(MD); if(r) put(r.md).then(ok=>{ if(ok){ focusId=r.id; place(); } });
     return;
   }
+  const d=e.target.closest('.del');
+  // 消すのは戻せない。押したその場で一度だけ聞く
+  if(d){ if(confirm(`#${d.dataset.id} ${d.dataset.name}\n\nこの行を消します。戻せません。`)) apply(dropRow(MD, d.dataset.id)); return; }
   const b=e.target.closest('.st');
   if(b){ const i=STATES.indexOf(norm(b.dataset.st)); commit(b.dataset.id,'状態',STATES[(i+1)%STATES.length]); }
 });
@@ -315,12 +330,9 @@ async function tick(){
     if(md+'\0'+nd!==last && !main.querySelector('[data-field]:focus')){
       last=md+'\0'+nd; render(md,nd); place();
     }
-    dot.classList.remove('off');
-    document.getElementById('time').textContent=
-      new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' 時点';
+    dot.classList.remove('off'); dot.title='追従中';
   }catch(e){
-    dot.classList.add('off');
-    document.getElementById('time').textContent='未接続';
+    dot.classList.add('off'); dot.title='未接続';
     if(last===null) fail();
   }
 }
