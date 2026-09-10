@@ -55,6 +55,32 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .log time{color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
 .log .lid{color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
 
+.notes{margin-top:40px;padding-top:22px;border-top:1px solid var(--line)}
+.notes h2{font-family:var(--serif);font-size:14px;font-weight:600;letter-spacing:.18em;
+          margin:0 0 14px;color:var(--muted)}
+.wk{margin-bottom:20px}
+.wk h3{font-size:11px;letter-spacing:.12em;font-weight:600;color:var(--muted);margin:0 0 6px}
+.wk ul{list-style:none;margin:0;padding:0}
+.wk li{display:flex;gap:12px;font-size:13px;padding:7px 2px;border-bottom:1px solid var(--line)}
+.wk time{color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+.wk li.blank span{opacity:.35}
+.tie{font-family:var(--serif);font-size:13px;margin:10px 0 0;padding:9px 13px;color:var(--ink);
+     border-left:2px solid #8a6ab5;background:rgba(138,106,181,.09);border-radius:0 6px 6px 0}
+
+[data-field]{border-radius:4px;outline:none;cursor:text}
+[data-field]:hover{background:rgba(128,128,128,.09)}
+[data-field]:focus{background:rgba(128,128,128,.14);box-shadow:0 0 0 2px var(--d,#8b8378) inset}
+.ph{opacity:.32}
+.st{font-family:var(--sans);font-size:11px;letter-spacing:.06em;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:none;cursor:pointer}
+.st:hover{color:var(--ink);border-color:var(--d,#8b8378)}
+.add{font-family:var(--sans);font-size:12px;color:var(--muted);background:none;cursor:pointer;
+     border:1px dashed var(--line);border-radius:9px;padding:8px 0;width:100%;margin-bottom:12px}
+.add:hover{color:var(--ink);border-color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--panel);
+       border:1px solid var(--line);border-radius:8px;padding:9px 16px;font-size:12px;
+       box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
 .note{margin-top:34px;font-size:12px;color:var(--muted);opacity:.75}
 .err{background:var(--panel);border:1px solid #c0554f;border-radius:10px;padding:18px 20px;
      font-size:13px;line-height:1.9}
@@ -70,6 +96,7 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
   </header>
   <main id="main"></main>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 const COLS = [
@@ -100,18 +127,47 @@ function overdue(s){
   return new Date(+m[1],+m[2]-1,+m[3]) < t;
 }
 
+/* notes.md: 「## 見出し」「- 日付 本文」「つながり: 本文」だけ拾う */
+function weeks(md){
+  const out=[]; let cur=null;
+  for (const raw of String(md).split(/\r?\n/)){
+    const t=raw.trim(); let m;
+    if ((m=t.match(/^#{2,3}\s+(.*)$/))){ cur={title:m[1],items:[],tie:''}; out.push(cur); continue; }
+    if (!cur) continue;
+    if ((m=t.match(/^つながり\s*[:：]\s*(.*)$/))){ cur.tie=m[1].trim(); continue; }
+    if ((m=t.match(/^[-*]\s+(.*)$/))){
+      const b=m[1].trim(), d=b.match(/^(\d{1,2}[-\/]\d{1,2}(?:\s*\([^)]*\))?)\s*(.*)$/);
+      cur.items.push(d?{date:d[1],body:d[2].trim()}:{date:'',body:b});
+    }
+  }
+  return out.filter(w=>w.items.length||w.tie);
+}
+
+function notes(md){
+  const ws=weeks(md); if(!ws.length) return '';
+  return `<section class="notes"><h2>見 つ け た も の</h2>${ws.map(w=>`
+    <div class="wk"><h3>${esc(w.title)}</h3><ul>${w.items.map(i=>
+      `<li class="${i.body?'':'blank'}"><time>${esc(i.date)}</time><span>${esc(i.body||'—')}</span></li>`
+    ).join('')}</ul>${w.tie?`<p class="tie">${esc(w.tie)}</p>`:''}</div>`).join('')}</section>`;
+}
+
+const STATES=['todo','doing','done','drop'];
+
 function card(t){
   const dom=t['領域']||'', color=DOMAIN[dom]||'#8b8378', st=norm(t['状態']);
-  const dim=(st==='done'||st==='drop'), due=t['期限']||'';
+  const dim=(st==='done'||st==='drop'), due=t['期限']||'', id=esc(t['ID']||'');
+  const f=(field,val,ph,cls='')=>`<span class="${cls}${val?'':' ph'}" data-id="${id}" `+
+    `data-field="${field}" contenteditable="true">${esc(val||ph)}</span>`;
   return `<article class="card${dim?' dim':''}" style="--d:${color}">
-    <div class="top"><span class="dom">${esc(dom)}</span><span class="id">#${esc(t['ID']||'')}</span></div>
-    <h3>${esc(t['タスク']||'')}</h3>
-    ${t['なぜやる']?`<p class="why">${esc(t['なぜやる'])}</p>`:''}
-    ${due?`<span class="due${!dim&&overdue(due)?' over':''}">${esc(due)}</span>`:''}
+    <div class="top">${f('領域',dom,'領域','dom')}<span class="id">#${id}</span>
+      <button class="st" data-id="${id}" data-st="${esc(t['状態']||'todo')}">${esc(t['状態']||'todo')}</button></div>
+    <h3>${f('タスク',t['タスク']||'','（タスク）')}</h3>
+    <p class="why">${f('なぜやる',t['なぜやる']||'','なぜやる')}</p>
+    <span class="due${!dim&&overdue(due)?' over':''}">${f('期限',due,'期限')}</span>
   </article>`;
 }
 
-function render(md){
+function render(md, nd){
   const ts=tables(md);
   const tasks=(ts.find(t=>t[0]&&'状態' in t[0])||[]);
   const logs =(ts.find(t=>t[0]&&'日付' in t[0])||[]);
@@ -120,31 +176,145 @@ function render(md){
   document.getElementById('main').innerHTML = `
     <div class="board">${cols.map(c=>`<section class="col">
       <h2>${c.label}<b>${c.items.length}</b></h2>
+      ${c.key==='todo'?'<button class="add" id="add">＋ 行を足す</button>':''}
       ${c.items.length?c.items.map(card).join(''):'<div class="empty">—</div>'}
     </section>`).join('')}</div>
+    ${notes(nd)}
     ${logs.length?`<section class="log"><h2>完 了 ロ グ</h2><ul>${logs.map(l=>
       `<li><time>${esc(l['日付']||'')}</time><span class="lid">#${esc(l['ID']||'')}</span><span>${esc(l['ひとこと']||'')}</span></li>`
     ).join('')}</ul></section>`:''}
-    <p class="note">data/tasks.md をそのまま映しています。書き換えは data/tasks.md で。</p>`;
+    <p class="note">直した内容はそのまま data/tasks.md へ書き戻します。画面は写しを持ちません。</p>`;
 }
 
 function fail(){
   document.getElementById('main').innerHTML = `<div class="err">
     <b>data/tasks.md を読めませんでした。</b><br>
     初回セットアップ：<code>mkdir -p data && cp -rn template/. data/</code><br>
-    起動：<code>python3 -m http.server 8765</code> → <code>http://localhost:8765</code><br>
+    起動：<code>python3 server.py</code> → <code>http://localhost:8765</code><br>
     （file:// で直接開くと読めません。かならずサーバー越しに）
   </div>`;
 }
 
-let last=null;
+/* ---- 管理票の書き換え。表の行そのものを直し、他の行には触らない ---- */
+const cells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(s=>s.trim());
+const clean = v => String(v).replace(/[|｜]/g,'／').replace(/\s+/g,' ').trim();
+
+function tasksTable(md){
+  const lines=md.split('\n');
+  const head=lines.findIndex(l=>/^\s*\|/.test(l)&&/\|\s*状態\s*\|/.test(l));
+  if(head<0) return null;
+  let end=head+2;
+  while(end<lines.length && /^\s*\|/.test(lines[end])) end++;
+  return {lines, cols:cells(lines[head]), start:head+2, end};
+}
+
+function editCell(md, id, field, val){
+  const t=tasksTable(md); if(!t) return md;
+  const ci=t.cols.indexOf(field); if(ci<0) return md;
+  for(let i=t.start;i<t.end;i++){
+    const c=cells(t.lines[i]);
+    if(c[0]===String(id)){ c[ci]=clean(val); t.lines[i]='| '+c.join(' | ')+' |'; break; }
+  }
+  return t.lines.join('\n');
+}
+
+function addRow(md){
+  const t=tasksTable(md); if(!t) return null;
+  const ids=[]; for(let i=t.start;i<t.end;i++) ids.push(parseInt(cells(t.lines[i])[0],10)||0);
+  const id=Math.max(0,...ids)+1;
+  t.lines.splice(t.end,0,'| '+t.cols.map(c=>c==='ID'?String(id):c==='状態'?'todo':'').join(' | ')+' |');
+  return {md:t.lines.join('\n'), id};
+}
+
+/* ---- 書き戻し。先に誰かが書いていたら、上書きせず読み直す ---- */
+let last=null, MD='', ETAG=null, focusId=null;
+
+function toast(m){
+  const el=document.getElementById('toast');
+  el.textContent=m; el.classList.add('on');
+  clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('on'),3200);
+}
+
+async function put(md){
+  try{
+    const r=await fetch('data/tasks.md',{method:'PUT',
+      headers:Object.assign({'Content-Type':'text/markdown; charset=utf-8'}, ETAG?{'If-Match':ETAG}:{}),
+      body:md});
+    if(r.status===409){ toast('先に書き換えられていました。読み直します'); last=null; await tick(); return false; }
+    if(!r.ok) throw 0;
+    ETAG=r.headers.get('ETag'); MD=md; last=null; await tick(); return true;
+  }catch(e){ toast('書き込めません。python3 server.py で起動していますか'); return false; }
+}
+
+async function commit(id, field, val){
+  const md=editCell(MD, id, field, val);
+  if(md===MD){ last=null; tick(); return; }
+  await put(md);
+}
+
+const main=document.getElementById('main');
+
+main.addEventListener('click', e=>{
+  if(e.target.id==='add'){
+    const r=addRow(MD); if(r) put(r.md).then(ok=>{ if(ok){ focusId=r.id; place(); } });
+    return;
+  }
+  const b=e.target.closest('.st');
+  if(b){ const i=STATES.indexOf(norm(b.dataset.st)); commit(b.dataset.id,'状態',STATES[(i+1)%STATES.length]); }
+});
+
+main.addEventListener('focusin', e=>{
+  const el=e.target.closest('[data-field]'); if(!el) return;
+  if(el.classList.contains('ph')){ el.textContent=''; el.classList.remove('ph'); }
+  el.dataset.orig=el.textContent;
+});
+
+/* かな漢字変換の最中の Enter は「変換の確定」であって、こちらの確定ではない。
+   途中で欄を閉じると、確定した文字列が描き直した欄へもう一度流れ込んで二重になる。
+   確定直後の Enter も同じ一打なので、しばらく捨てる（Safari は変換確定が先に届く） */
+let composing=false, composedAt=0;
+main.addEventListener('compositionstart', ()=>{ composing=true; });
+main.addEventListener('compositionend',   ()=>{ composing=false; composedAt=Date.now(); });
+
+main.addEventListener('keydown', e=>{
+  const el=e.target.closest('[data-field]'); if(!el) return;
+  if(composing || e.isComposing || e.keyCode===229) return;
+  if(e.key==='Enter'){
+    if(Date.now()-composedAt<200) return;
+    e.preventDefault(); el.blur();
+  }
+  if(e.key==='Escape'){ el.textContent=el.dataset.orig||''; el.blur(); }
+});
+
+main.addEventListener('focusout', e=>{
+  const el=e.target.closest('[data-field]'); if(!el) return;
+  const v=el.textContent.trim();
+  if(v===String(el.dataset.orig||'').trim()){ last=null; tick(); return; }
+  commit(el.dataset.id, el.dataset.field, v);
+});
+
+function place(){
+  if(!focusId) return;
+  const el=main.querySelector(`[data-id="${focusId}"][data-field="タスク"]`);
+  focusId=null; if(!el) return;
+  el.textContent=''; el.classList.remove('ph'); el.focus();
+}
+
 async function tick(){
   const dot=document.getElementById('dot');
   try{
-    const r=await fetch('data/tasks.md?_='+Date.now(),{cache:'no-store'});
+    const [r,rn]=await Promise.all([
+      fetch('data/tasks.md?_='+Date.now(),{cache:'no-store'}),
+      fetch('data/notes.md?_='+Date.now(),{cache:'no-store'}).catch(()=>null)
+    ]);
     if(!r.ok) throw 0;
     const md=await r.text();
-    if(md!==last){ last=md; render(md); }
+    const nd=(rn&&rn.ok)?await rn.text():'';
+    MD=md; ETAG=r.headers.get('ETag');
+    // 書きかけの手を払わない。編集中は描き直しを待つ
+    if(md+'\0'+nd!==last && !main.querySelector('[data-field]:focus')){
+      last=md+'\0'+nd; render(md,nd); place();
+    }
     dot.classList.remove('off');
     document.getElementById('time').textContent=
       new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' 時点';

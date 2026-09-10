@@ -4,7 +4,7 @@
     {
       "name": "board",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765"],
+      "runtimeArgs": ["server.py"],
       "port": 8765,
       "url": "http://localhost:8765"
     }
