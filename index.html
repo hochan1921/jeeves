@@ -26,6 +26,8 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .dot{width:6px;height:6px;border-radius:50%;background:#6ea87f;opacity:.85;
      margin-left:auto;align-self:center}
 .dot.off{background:#c0554f}
+.nav{font-size:13px;color:var(--muted);text-decoration:none;letter-spacing:.06em}
+.nav:hover{color:var(--ink)}
 
 .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px}
 .col h2{font-family:var(--serif);font-size:14px;font-weight:600;letter-spacing:.18em;
@@ -100,6 +102,7 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
   <header>
     <h1>ダッシュボード</h1>
     <span class="dot" id="dot" title="読込中"></span>
+    <a class="nav" href="study.html">勉強 →</a>
   </header>
   <main id="main"></main>
 </div>
