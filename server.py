@@ -22,7 +22,7 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*a, directory=ROOT, **k)
 
     def end_headers(self):
-        # 画面も管理票も、古いものを掴ませない
+        # 画面も data/ の中身も、古いものを掴ませない
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
@@ -57,7 +57,7 @@ class Handler(SimpleHTTPRequestHandler):
         tmp = p + ".tmp"
         with open(tmp, "wb") as f:
             f.write(body)
-        os.replace(tmp, p)  # 途中で切れた管理票を残さない
+        os.replace(tmp, p)  # 途中で切れた台帳を残さない
         self.send_response(204)
         self.send_header("ETag", tag(body))
         self.end_headers()
@@ -65,5 +65,5 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.makedirs(DATA, exist_ok=True)
-    print(f"管理票 http://localhost:{PORT}  （同じ Wi-Fi の端末からも書き換えられます）")
+    print(f"ダッシュボード http://localhost:{PORT}  （同じ Wi-Fi の端末からも書き換えられます）")
     ThreadingHTTPServer(("", PORT), Handler).serve_forever()
