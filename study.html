@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>勉強</title>
+<style>
+:root{
+  --bg:#faf8f4; --panel:#ffffff; --ink:#1d1b17; --muted:#847c6e; --line:#e7e1d6; --a:#7355a3;
+  --serif:"Hiragino Mincho ProN","Yu Mincho",YuMincho,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#131210; --panel:#1c1a17; --ink:#ece7de; --muted:#948c7e; --line:#2c2925; --a:#a98fd6; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+     -webkit-font-smoothing:antialiased;line-height:1.6}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 20px 64px}
+
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+       padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:28px}
+h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;margin:0}
+.dot{width:6px;height:6px;border-radius:50%;background:#6ea87f;opacity:.85;
+     margin-left:auto;align-self:center}
+.dot.off{background:#c0554f}
+.nav{font-size:13px;color:var(--muted);text-decoration:none;letter-spacing:.06em}
+.nav:hover{color:var(--ink)}
+
+.page{display:grid;grid-template-columns:150px minmax(0,1fr);gap:40px}
+.side{position:sticky;top:24px;align-self:start;display:flex;flex-direction:column}
+.side a{font-size:14px;letter-spacing:.06em;color:var(--muted);text-decoration:none;
+        padding:6px 14px;border-left:2px solid var(--line)}
+.side a:hover{color:var(--ink)}
+.side a[aria-current]{color:var(--ink);font-weight:600;border-color:var(--a)}
+
+.doc{max-width:720px;font-size:15px;line-height:1.85}
+.doc h1{font-size:22px;letter-spacing:.08em;margin:0 0 20px}
+.doc h2{font-family:var(--serif);font-size:18px;font-weight:600;margin:36px 0 12px;
+        padding-bottom:6px;border-bottom:1px solid var(--line)}
+.doc h3{font-size:15px;font-weight:600;margin:26px 0 6px}
+.doc h4{font-size:13px;font-weight:600;color:var(--muted);margin:20px 0 4px}
+.doc p,.doc ul,.tbl{margin:0 0 14px}
+.doc ul{padding-left:1.3em}
+.doc hr{border:0;border-top:1px solid var(--line);margin:28px 0}
+.doc a{color:var(--a);text-underline-offset:3px;text-decoration-thickness:1px}
+.doc strong{font-weight:600}
+.tbl{overflow-x:auto}
+.doc table{border-collapse:collapse;font-size:13px;line-height:1.6}
+.doc th,.doc td{text-align:left;vertical-align:top;padding:7px 18px 7px 0;border-bottom:1px solid var(--line)}
+.doc th{color:var(--muted);font-weight:600;white-space:nowrap}
+
+.empty{font-size:13px;color:var(--muted)}
+.note{margin-top:48px;font-size:12px;color:var(--muted);opacity:.75}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+     background:rgba(128,128,128,.14);padding:2px 6px;border-radius:4px}
+.err{background:var(--panel);border:1px solid #c0554f;border-radius:10px;padding:18px 20px;
+     font-size:13px;line-height:1.9}
+
+/* スマホでは左ペインを上に寝かせる */
+@media (max-width:720px){
+  .page{grid-template-columns:1fr;gap:22px}
+  .side{position:static;flex-direction:row;overflow-x:auto;border-bottom:1px solid var(--line)}
+  .side a{flex:none;border-left:0;border-bottom:2px solid transparent;padding:6px 12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>勉強</h1>
+    <span class="dot" id="dot" title="読込中"></span>
+    <a class="nav" href="./">ダッシュボード →</a>
+  </header>
+  <main id="main"></main>
+</div>
+
+<script>
+const BASE='data/study/';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(s=>s.trim());
+
+/* 文中で拾うのはリンクと太字だけ。飛び先は http(s) と、別の科目への #科目名 に限る */
+const inline = s => esc(s)
+  .replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (_,t,u)=>
+    /^https?:\/\//.test(u) ? `<a href="${u}" target="_blank" rel="noopener">${t}</a>`
+    : u[0]==='#' ? `<a href="${u}">${t}</a>` : t)
+  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+/* 行で拾うのは 見出し・段落・箇条書き・表・区切り線だけ。ほかは地の文として出す */
+function blocks(md){
+  const out=[]; let para=[], list=null, rows=null;
+  const flush=()=>{
+    if(para.length) out.push(`<p>${para.map(inline).join('<br>')}</p>`);
+    if(list) out.push(`<ul>${list.map(i=>`<li>${inline(i)}</li>`).join('')}</ul>`);
+    if(rows){ const [h,...b]=rows;
+      out.push(`<div class="tbl"><table><tr>${h.map(c=>`<th>${inline(c)}</th>`).join('')}</tr>${
+        b.map(r=>`<tr>${h.map((_,i)=>`<td>${inline(r[i]??'')}</td>`).join('')}</tr>`).join('')}</table></div>`); }
+    para=[]; list=null; rows=null;
+  };
+  for (const raw of md.split(/\r?\n/)){
+    const t=raw.trim(); let m;
+    if (!t){ flush(); continue; }
+    if ((m=t.match(/^(#{1,4})\s+(.*)$/))){ flush(); const n=m[1].length; out.push(`<h${n}>${inline(m[2])}</h${n}>`); continue; }
+    if (/^(-{3,}|\*{3,})$/.test(t)){ flush(); out.push('<hr>'); continue; }
+    if (t.startsWith('|')){
+      const c=cells(t); if (c.every(x=>/^:?-{2,}:?$/.test(x))) continue;
+      if (!rows){ flush(); rows=[]; } rows.push(c); continue;
+    }
+    if ((m=t.match(/^[-*](?:\s+(.*))?$/))){ if (!list){ flush(); list=[]; } list.push(m[1]||''); continue; }
+    if (list||rows) flush();
+    para.push(t);
+  }
+  flush();
+  return out.join('');
+}
+
+/* 科目は data/study/ にある .md をそのまま並べる。名前はフォルダの目次から拾い、コードには持たない */
+function subjects(listing){
+  const d=new DOMParser().parseFromString(listing,'text/html');
+  return [...d.querySelectorAll('a[href]')]
+    .map(a=>{ try{ return decodeURIComponent(a.getAttribute('href')); }catch(e){ return ''; } })
+    .filter(h=>h.endsWith('.md') && !h.startsWith('.') && !h.includes('/'))
+    .map(h=>h.slice(0,-3)).sort((a,b)=>a.localeCompare(b,'ja'));
+}
+const wanted = () => { try{ return decodeURIComponent(location.hash.slice(1)); }catch(e){ return ''; } };
+
+const main=document.getElementById('main');
+
+function render(names, cur, md){
+  document.title = cur ? `${cur}｜勉強` : '勉強';
+  if (!names.length){
+    main.innerHTML=`<p class="empty">科目はまだありません。<code>data/study/歴史.md</code> のように置くと、ここに並びます。</p>`;
+    return;
+  }
+  // 先頭の「# 題」がページの題。無ければファイル名
+  const m=md.match(/^\s*#[ \t]+(.*)/), body=m?md.slice(m[0].length):md;
+  main.innerHTML=`<div class="page">
+    <nav class="side">${names.map(n=>
+      `<a href="#${encodeURIComponent(n)}"${n===cur?' aria-current="page"':''}>${esc(n)}</a>`).join('')}</nav>
+    <article class="doc"><h1>${esc(m?m[1].trim():cur)}</h1>${body.trim()?blocks(body)
+      :`<p class="empty">まだ何もありません。<code>data/study/${esc(cur)}.md</code> に書けば、ここに出ます。</p>`}
+    </article>
+  </div>
+  <p class="note">data/study/ をそのまま映しています。書くのは執事かエディタで。</p>`;
+}
+
+function fail(){
+  main.innerHTML=`<div class="err">
+    <b>data/study/ を読めませんでした。</b><br>
+    起動：<code>python3 server.py</code> → <code>http://localhost:8765/study.html</code><br>
+    （file:// で直接開くと読めません。かならずサーバー越しに）
+  </div>`;
+}
+
+/* 5 秒ごとに読み直す。執事が書き足せば、開いたまま変わる */
+let last=null;
+async function tick(){
+  const dot=document.getElementById('dot'), hash=location.hash;
+  try{
+    const r=await fetch(BASE,{cache:'no-store'});
+    if (!r.ok && r.status!==404) throw 0;  // フォルダが無いのは、科目がまだ無いだけ
+    const names=r.ok?subjects(await r.text()):[];
+    const cur=names.includes(wanted())?wanted():(names[0]||'');
+    let md='';
+    if (cur){ const f=await fetch(BASE+encodeURIComponent(cur)+'.md',{cache:'no-store'}); if (f.ok) md=await f.text(); }
+    if (hash!==location.hash) return;  // 読んでいる間に科目が替わった。新しいほうに任せる
+    const key=names.join('\n')+'\0'+cur+'\0'+md;
+    if (key!==last){ last=key; render(names,cur,md); }
+    dot.classList.remove('off'); dot.title='追従中';
+  }catch(e){
+    dot.classList.add('off'); dot.title='未接続';
+    if (last===null) fail();
+  }
+}
+addEventListener('hashchange', ()=>tick().then(()=>scrollTo(0,0)));
+tick(); setInterval(tick,5000);
+</script>
+</body>
+</html>
