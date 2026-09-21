@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>管理票</title>
+<title>ダッシュボード</title>
 <style>
 :root{
   --bg:#faf8f4; --panel:#ffffff; --ink:#1d1b17; --muted:#847c6e; --line:#e7e1d6;
@@ -27,15 +27,17 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
      margin-left:auto;align-self:center}
 .dot.off{background:#c0554f}
 
-.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:22px}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px}
 .col h2{font-family:var(--serif);font-size:14px;font-weight:600;letter-spacing:.18em;
         margin:0 0 12px;color:var(--muted);display:flex;align-items:center;gap:8px}
 .col h2 b{font-family:var(--sans);font-weight:500;font-size:11px;letter-spacing:0;
           color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:0 6px}
 .empty{font-size:13px;color:var(--muted);opacity:.6;padding:6px 2px}
+.col.over{background:rgba(128,128,128,.07);border-radius:10px;box-shadow:0 0 0 6px rgba(128,128,128,.07)}
+.card.grab{opacity:.35;cursor:grabbing}
 
 .card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--d,#999);
-      border-radius:10px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+      border-radius:10px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow);cursor:grab}
 .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .dom{font-size:11px;letter-spacing:.08em;color:var(--d);font-weight:600}
 .id{font-size:11px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
@@ -67,13 +69,15 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .tie{font-family:var(--serif);font-size:13px;margin:10px 0 0;padding:9px 13px;color:var(--ink);
      border-left:2px solid #8a6ab5;background:rgba(138,106,181,.09);border-radius:0 6px 6px 0}
 
-[data-field]{border-radius:4px;outline:none;cursor:text}
+[data-field]{border-radius:4px;outline:none}
+[data-field][contenteditable="true"]{cursor:text}
 [data-field]:hover{background:rgba(128,128,128,.09)}
 [data-field]:focus{background:rgba(128,128,128,.14);box-shadow:0 0 0 2px var(--d,#8b8378) inset}
 .ph{opacity:.32}
 .st{font-family:var(--sans);font-size:11px;letter-spacing:.06em;color:var(--muted);
-    border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:none;cursor:pointer}
-.st:hover{color:var(--ink);border-color:var(--d,#8b8378)}
+    border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:none;cursor:pointer;
+    appearance:none;-webkit-appearance:none;text-align:center}
+.st:hover,.st:focus{color:var(--ink);border-color:var(--d,#8b8378);outline:none}
 .del{font-family:var(--sans);font-size:14px;line-height:1;color:var(--muted);background:none;
      border:0;border-radius:4px;padding:1px 5px;cursor:pointer;opacity:.34}
 .del:hover{opacity:1;color:#c0554f;background:rgba(192,85,79,.1)}
@@ -94,7 +98,7 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 <body>
 <div class="wrap">
   <header>
-    <h1>管 理 票</h1>
+    <h1>ダッシュボード</h1>
     <span class="dot" id="dot" title="読込中"></span>
   </header>
   <main id="main"></main>
@@ -103,8 +107,8 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 
 <script>
 const COLS = [
-  {key:'todo',  label:'こ れ か ら', always:true},
-  {key:'doing', label:'進 行 中',   always:true},
+  {key:'todo',  label:'こ れ か ら'},
+  {key:'doing', label:'進 行 中'},
   {key:'done',  label:'完 了'},
   {key:'drop',  label:'見 送 り'},
 ];
@@ -160,10 +164,11 @@ function card(t){
   const dom=t['領域']||'', color=DOMAIN[dom]||'#8b8378', st=norm(t['状態']);
   const dim=(st==='done'||st==='drop'), due=t['期限']||'', id=esc(t['ID']||'');
   const f=(field,val,ph,cls='')=>`<span class="${cls}${val?'':' ph'}" data-id="${id}" `+
-    `data-field="${field}" contenteditable="true">${esc(val||ph)}</span>`;
-  return `<article class="card${dim?' dim':''}" style="--d:${color}">
+    `data-field="${field}">${esc(val||ph)}</span>`;
+  return `<article class="card${dim?' dim':''}" style="--d:${color}" data-id="${id}" draggable="true">
     <div class="top">${f('領域',dom,'領域','dom')}<span class="id">#${id}</span>
-      <button class="st" data-id="${id}" data-st="${esc(t['状態']||'todo')}">${esc(t['状態']||'todo')}</button>
+      <select class="st" data-id="${id}" title="状態を選ぶ">${STATES.map(s=>
+        `<option${s===st?' selected':''}>${s}</option>`).join('')}</select>
       <button class="del" data-id="${id}" data-name="${esc(t['タスク']||'')}" title="この行を消す">×</button></div>
     <h3>${f('タスク',t['タスク']||'','（タスク）')}</h3>
     <p class="why">${f('なぜやる',t['なぜやる']||'','なぜやる')}</p>
@@ -175,10 +180,9 @@ function render(md, nd){
   const ts=tables(md);
   const tasks=(ts.find(t=>t[0]&&'状態' in t[0])||[]);
   const logs =(ts.find(t=>t[0]&&'日付' in t[0])||[]);
-  const cols=COLS.map(c=>({...c, items:tasks.filter(t=>norm(t['状態'])===c.key)}))
-                 .filter(c=>c.always||c.items.length);
+  const cols=COLS.map(c=>({...c, items:tasks.filter(t=>norm(t['状態'])===c.key)}));
   document.getElementById('main').innerHTML = `
-    <div class="board">${cols.map(c=>`<section class="col">
+    <div class="board">${cols.map(c=>`<section class="col" data-st="${c.key}">
       <h2>${c.label}<b>${c.items.length}</b></h2>
       ${c.key==='todo'?'<button class="add" id="add">＋ 行を足す</button>':''}
       ${c.items.length?c.items.map(card).join(''):'<div class="empty">—</div>'}
@@ -199,7 +203,7 @@ function fail(){
   </div>`;
 }
 
-/* ---- 管理票の書き換え。表の行そのものを直し、他の行には触らない ---- */
+/* ---- ダッシュボードの書き換え。表の行そのものを直し、他の行には触らない ---- */
 const cells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(s=>s.trim());
 const clean = v => String(v).replace(/[|｜]/g,'／').replace(/\s+/g,' ').trim();
 
@@ -274,8 +278,44 @@ main.addEventListener('click', e=>{
   const d=e.target.closest('.del');
   // 消すのは戻せない。押したその場で一度だけ聞く
   if(d){ if(confirm(`#${d.dataset.id} ${d.dataset.name}\n\nこの行を消します。戻せません。`)) apply(dropRow(MD, d.dataset.id)); return; }
-  const b=e.target.closest('.st');
-  if(b){ const i=STATES.indexOf(norm(b.dataset.st)); commit(b.dataset.id,'状態',STATES[(i+1)%STATES.length]); }
+  // 文字はクリックで書ける状態にする。それまでは掴む側でいる（掴んだときは click が来ない）
+  const el=e.target.closest('[data-field]');
+  if(el && el.contentEditable!=='true'){
+    const r=el.classList.contains('ph')||!document.caretRangeFromPoint ? null
+          : document.caretRangeFromPoint(e.clientX, e.clientY);
+    el.contentEditable='true'; el.focus();
+    if(r && el.contains(r.startContainer)){ const g=getSelection(); g.removeAllRanges(); g.addRange(r); }
+  }
+});
+
+main.addEventListener('change', e=>{
+  const s=e.target.closest('.st'); if(!s) return;
+  s.blur();  // 選んだ直後に手を離す。列の移動をその場で見せるため
+  commit(s.dataset.id,'状態',s.value);
+});
+
+/* ---- 列へ放り込んでも変わる。掴めるのはカードの全面 ---- */
+let dragId=null, overCol=null;
+function dragOff(){
+  main.querySelectorAll('.grab').forEach(c=>c.classList.remove('grab'));
+  if(overCol) overCol.classList.remove('over');
+  overCol=null; dragId=null;
+}
+main.addEventListener('dragstart', e=>{
+  const c=e.target.closest('.card'); if(!c) return;
+  dragId=c.dataset.id; c.classList.add('grab');
+  e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', dragId);
+});
+main.addEventListener('dragend', dragOff);
+main.addEventListener('dragover', e=>{
+  const col=dragId&&e.target.closest('.col'); if(!col) return;
+  e.preventDefault();
+  if(col!==overCol){ if(overCol) overCol.classList.remove('over'); (overCol=col).classList.add('over'); }
+});
+main.addEventListener('drop', e=>{
+  const col=dragId&&e.target.closest('.col'); if(!col) return;
+  e.preventDefault();
+  const id=dragId, st=col.dataset.st; dragOff(); commit(id,'状態',st);
 });
 
 main.addEventListener('focusin', e=>{
@@ -303,6 +343,7 @@ main.addEventListener('keydown', e=>{
 
 main.addEventListener('focusout', e=>{
   const el=e.target.closest('[data-field]'); if(!el) return;
+  el.contentEditable='false';
   const v=el.textContent.trim();
   if(v===String(el.dataset.orig||'').trim()){ last=null; tick(); return; }
   commit(el.dataset.id, el.dataset.field, v);
@@ -312,7 +353,7 @@ function place(){
   if(!focusId) return;
   const el=main.querySelector(`[data-id="${focusId}"][data-field="タスク"]`);
   focusId=null; if(!el) return;
-  el.textContent=''; el.classList.remove('ph'); el.focus();
+  el.textContent=''; el.classList.remove('ph'); el.contentEditable='true'; el.focus();
 }
 
 async function tick(){
@@ -327,7 +368,7 @@ async function tick(){
     const nd=(rn&&rn.ok)?await rn.text():'';
     MD=md; ETAG=r.headers.get('ETag');
     // 書きかけの手を払わない。編集中は描き直しを待つ
-    if(md+'\0'+nd!==last && !main.querySelector('[data-field]:focus')){
+    if(md+'\0'+nd!==last && !main.querySelector('[data-field]:focus, .st:focus')){
       last=md+'\0'+nd; render(md,nd); place();
     }
     dot.classList.remove('off'); dot.title='追従中';
