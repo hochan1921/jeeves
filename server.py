@@ -4,7 +4,7 @@
 python3 -m http.server は書き込みを受けないので、その分だけを足したもの。
 台帳は data/*.md ひとつきり。画面は写しを持たず、直した内容をここへ書き戻す。
 """
-import hashlib, os, sys
+import hashlib, os, socket, sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +15,15 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 def tag(b):
     """中身そのものの札。これが変わっていたら、誰かが先に書いている。"""
     return '"%s"' % hashlib.sha1(b).hexdigest()[:16]
+
+
+def taken(port):
+    """もう誰かが応答している番号か。127.0.0.1 だけで待ち受ける相手には、OS が断らずに重ねてしまう。"""
+    try:
+        socket.create_connection(("localhost", port), timeout=1).close()
+        return True
+    except OSError:
+        return False
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -64,6 +73,8 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    if taken(PORT):
+        sys.exit(f"{PORT} 番はほかのアプリが使っています。python3 server.py {PORT + 1} のように番号を変えてください")
     os.makedirs(DATA, exist_ok=True)
     print(f"ダッシュボード http://localhost:{PORT}  （同じ Wi-Fi の端末からも書き換えられます）")
     ThreadingHTTPServer(("", PORT), Handler).serve_forever()
