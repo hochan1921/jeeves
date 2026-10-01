@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>勉強</title>
+<title>ニュース</title>
 <style>
 :root{
-  --bg:#faf8f4; --panel:#ffffff; --ink:#1d1b17; --muted:#847c6e; --line:#e7e1d6; --a:#7355a3;
+  --bg:#faf8f4; --panel:#ffffff; --ink:#1d1b17; --muted:#847c6e; --line:#e7e1d6; --a:#3f6fa6;
   --serif:"Hiragino Mincho ProN","Yu Mincho",YuMincho,serif;
   --sans:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
 }
 @media (prefers-color-scheme:dark){
-  :root{ --bg:#131210; --panel:#1c1a17; --ink:#ece7de; --muted:#948c7e; --line:#2c2925; --a:#a98fd6; }
+  :root{ --bg:#131210; --panel:#1c1a17; --ink:#ece7de; --muted:#948c7e; --line:#2c2925; --a:#8fb3e0; }
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
@@ -28,24 +28,23 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .nav:hover{color:var(--ink)}
 header nav{display:flex;gap:16px}  /* 狭い画面では、ページへのリンクをまとめて右に折り返す */
 
-.page{display:grid;grid-template-columns:180px minmax(0,1fr);gap:40px}
-.side{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow-y:auto}
-.side nav{display:flex;flex-direction:column}
-.side .items{margin-top:18px}
-.side a{font-size:14px;letter-spacing:.06em;color:var(--muted);text-decoration:none;
-        padding:6px 14px;border-left:2px solid var(--line)}
-.side .items a{font-size:13px;letter-spacing:.02em;padding:5px 14px}
-.side a:hover{color:var(--ink)}
-.side a[aria-current],.side a.on{color:var(--ink);font-weight:600;border-color:var(--a)}
+/* 種類ごとのタブ。多ければ横に流す */
+.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:26px}
+.tabs a{flex:none;font-size:14px;letter-spacing:.06em;color:var(--muted);text-decoration:none;
+        padding:8px 16px;border-bottom:2px solid transparent}
+.tabs a:hover{color:var(--ink)}
+.tabs a[aria-current]{color:var(--ink);font-weight:600;border-color:var(--a)}
 
 .doc{max-width:720px;font-size:15px;line-height:1.85}
+.aim{font-size:13px;line-height:1.8;color:var(--muted);margin-bottom:8px}
 .doc h1{font-size:22px;letter-spacing:.08em;margin:0 0 20px}
-.doc h2{font-family:var(--serif);font-size:18px;font-weight:600;margin:36px 0 12px;
+.doc h2{font-family:var(--serif);font-size:18px;font-weight:600;margin:32px 0 12px;
         padding-bottom:6px;border-bottom:1px solid var(--line)}
 .doc h3{font-size:15px;font-weight:600;margin:26px 0 6px}
 .doc h4{font-size:13px;font-weight:600;color:var(--muted);margin:20px 0 4px}
 .doc p,.doc ul,.tbl{margin:0 0 14px}
 .doc ul{padding-left:1.3em}
+.doc li{margin-bottom:8px}
 .doc hr{border:0;border-top:1px solid var(--line);margin:28px 0}
 .doc a{color:var(--a);text-underline-offset:3px;text-decoration-thickness:1px}
 .doc strong{font-weight:600}
@@ -60,34 +59,24 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
      background:rgba(128,128,128,.14);padding:2px 6px;border-radius:4px}
 .err{background:var(--panel);border:1px solid #c0554f;border-radius:10px;padding:18px 20px;
      font-size:13px;line-height:1.9}
-
-/* スマホでは左ペインを上に寝かせる */
-@media (max-width:720px){
-  .page{grid-template-columns:1fr;gap:22px}
-  .side{position:static;max-height:none;overflow:visible}
-  .side nav{flex-direction:row;overflow-x:auto;border-bottom:1px solid var(--line)}
-  .side .items{margin-top:4px}
-  .side a{flex:none;border-left:0;border-bottom:2px solid transparent;padding:6px 12px}
-  .side .items a{padding:6px 12px}
-}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>勉強</h1>
+    <h1>ニュース</h1>
     <span class="dot" id="dot" title="読込中"></span>
-    <nav><a class="nav" href="./">ダッシュボード →</a><a class="nav" href="news.html">ニュース →</a></nav>
+    <nav><a class="nav" href="./">ダッシュボード →</a><a class="nav" href="study.html">勉強 →</a></nav>
   </header>
   <main id="main"></main>
 </div>
 
 <script>
-const BASE='data/study/';
+const BASE='data/news/';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(s=>s.trim());
 
-/* 文中で拾うのはリンクと太字だけ。飛び先は http(s) と、別の科目への #科目名 に限る */
+/* 書式は勉強ページと同じ。文中で拾うのはリンクと太字だけ。飛び先は http(s) と、別の種類への #種類名 に限る */
 const inline = s => esc(s)
   .replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (_,t,u)=>
     /^https?:\/\//.test(u) ? `<a href="${u}" target="_blank" rel="noopener">${t}</a>`
@@ -122,71 +111,57 @@ function blocks(md){
   return out.join('');
 }
 
-/* 科目は data/study/ の .md とフォルダをそのまま並べる。名前はフォルダの目次から拾い、コードには持たない */
+/* 種類は data/news/ の .md をそのまま並べる。名前はフォルダの目次から拾い、コードには持たない */
 const ja = (a,b) => a.localeCompare(b,'ja');
-async function list(url){
-  const r=await fetch(url,{cache:'no-store'});
-  if (r.status===404) return {mds:[], dirs:[]};  // 無いのは、まだ置いていないだけ
+async function kinds(){
+  const r=await fetch(BASE,{cache:'no-store'});
+  if (r.status===404) return [];  // 無いのは、まだ置いていないだけ
   if (!r.ok) throw 0;
-  const hs=[...new DOMParser().parseFromString(await r.text(),'text/html').querySelectorAll('a[href]')]
+  return [...new DOMParser().parseFromString(await r.text(),'text/html').querySelectorAll('a[href]')]
     .map(a=>{ try{ return decodeURIComponent(a.getAttribute('href')); }catch(e){ return ''; } })
-    .filter(h=>h && !h.startsWith('.'));
-  return {mds:hs.filter(h=>/^[^/]+\.md$/.test(h)).map(h=>h.slice(0,-3)).sort(ja),
-          dirs:hs.filter(h=>/^[^/]+\/$/.test(h)).map(h=>h.slice(0,-1)).sort(ja)};
+    .filter(h=>/^[^./][^/]*\.md$/.test(h)).map(h=>h.slice(0,-3)).sort(ja);
 }
 const wanted = () => { try{ return decodeURIComponent(location.hash.slice(1)); }catch(e){ return ''; } };
 const enc = encodeURIComponent;
 
 const main=document.getElementById('main');
 
-function render(subs, items, path, md){
-  const [sub, item]=path, name=item||sub;
-  document.title = name ? `${name}｜勉強` : '勉強';
-  if (!subs.length){
-    main.innerHTML=`<p class="empty">科目はまだありません。<code>data/study/歴史.md</code> のように置くと、ここに並びます。</p>`;
+function render(ks, k, md){
+  document.title = k ? `${k}｜ニュース` : 'ニュース';
+  if (!ks.length){
+    main.innerHTML=`<p class="empty">種類はまだありません。<code>data/news/AI.md</code> のように置くと、ここにタブが並びます。</p>`;
     return;
   }
-  // 先頭の「# 題」がページの題。無ければファイル名
-  const m=md.match(/^\s*#[ \t]+(.*)/), body=m?md.slice(m[0].length):md;
-  main.innerHTML=`<div class="page">
-    <div class="side">
-      <nav>${subs.map(n=>`<a href="#${enc(n)}"${n!==sub?'':item?' class="on"':' aria-current="page"'}>${esc(n)}</a>`).join('')}</nav>
-      ${items.length?`<nav class="items">${items.map(n=>
-        `<a href="#${enc(sub)}/${enc(n)}"${n===item?' aria-current="page"':''}>${esc(n)}</a>`).join('')}</nav>`:''}
-    </div>
-    <article class="doc"><h1>${esc(m?m[1].trim():name)}</h1>${body.trim()?blocks(body)
-      :`<p class="empty">まだ何もありません。<code>data/study/${esc(path.join('/'))}.md</code> に書けば、ここに出ます。</p>`}
+  // 先頭の「# 題」はタブと同じなので出さない。「---」より上はねらいで、細く出す
+  const lines=md.replace(/^\s*#[ \t]+.*/,'').split(/\r?\n/), cut=lines.findIndex(l=>/^\s*-{3,}\s*$/.test(l));
+  const aim=lines.slice(0,Math.max(cut,0)).join('\n'), news=lines.slice(cut+1).join('\n');
+  main.innerHTML=`<nav class="tabs">${ks.map(n=>
+      `<a href="#${enc(n)}"${n===k?' aria-current="page"':''}>${esc(n)}</a>`).join('')}</nav>
+    <article class="doc">${aim.trim()?`<div class="aim">${blocks(aim)}</div>`:''}${news.trim()?blocks(news)
+      :'<p class="empty">まだありません。毎朝の更新で、ここに入ります。</p>'}
     </article>
-  </div>
-  <p class="note">data/study/ をそのまま映しています。書くのは執事かエディタで。</p>`;
+    <p class="note">data/news/ をそのまま映しています。毎朝、執事が書き換えます。</p>`;
 }
 
 function fail(){
   main.innerHTML=`<div class="err">
-    <b>data/study/ を読めませんでした。</b><br>
-    起動：<code>python3 server.py</code> → <code>http://localhost:8765/study.html</code><br>
+    <b>data/news/ を読めませんでした。</b><br>
+    起動：<code>python3 server.py</code> → <code>http://localhost:8765/news.html</code><br>
     （file:// で直接開くと読めません。かならずサーバー越しに）
   </div>`;
 }
 
-/* 5 秒ごとに読み直す。執事が書き足せば、開いたまま変わる */
+/* 5 秒ごとに読み直す。執事が書き換えれば、開いたまま変わる */
 let last=null;
 async function tick(){
   const dot=document.getElementById('dot'), hash=location.hash;
   try{
-    const top=await list(BASE);
-    const subs=[...new Set([...top.mds, ...top.dirs])].sort(ja);
-    const [s, i]=wanted().split('/');
-    const sub=subs.includes(s)?s:(subs[0]||'');
-    // 項目が増える科目はフォルダに 1 項目 1 ファイル。<科目>.md はその表紙で、無ければ最初の項目を開く
-    const items=top.dirs.includes(sub)?(await list(BASE+enc(sub)+'/')).mds:[];
-    const item=items.includes(i)?i:(top.mds.includes(sub)?'':(items[0]||''));
-    const path=[sub, item].filter(Boolean);
+    const ks=await kinds(), w=wanted(), k=ks.includes(w)?w:(ks[0]||'');
     let md='';
-    if (sub){ const f=await fetch(BASE+path.map(enc).join('/')+'.md',{cache:'no-store'}); if (f.ok) md=await f.text(); }
+    if (k){ const f=await fetch(BASE+enc(k)+'.md',{cache:'no-store'}); if (f.ok) md=await f.text(); }
     if (hash!==location.hash) return;  // 読んでいる間に開く先が替わった。新しいほうに任せる
-    const key=JSON.stringify([subs, items, path, md]);
-    if (key!==last){ last=key; render(subs, items, path, md); }
+    const key=JSON.stringify([ks, k, md]);
+    if (key!==last){ last=key; render(ks, k, md); }
     dot.classList.remove('off'); dot.title='追従中';
   }catch(e){
     dot.classList.add('off'); dot.title='未接続';
