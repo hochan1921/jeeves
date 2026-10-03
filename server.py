@@ -3,6 +3,7 @@
 
 python3 -m http.server は書き込みを受けないので、その分だけを足したもの。
 台帳は data/*.md ひとつきり。画面は写しを持たず、直した内容をここへ書き戻す。
+本人だけのもの（memory.md / talk.md）は、読ませも書かせもしない。
 """
 import hashlib, os, socket, sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -10,6 +11,13 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, "data")
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+PRIVATE = ("memory.md", "talk.md")  # 画面は読まない。同じ回線の人にも見せない
+
+
+def private(p):
+    """本人だけのものか。Mac は名前の大文字小文字を区別しないので、こちらも区別しない。"""
+    p = os.path.realpath(p).casefold()
+    return any(p == os.path.realpath(os.path.join(DATA, n)).casefold() for n in PRIVATE)
 
 
 def tag(b):
@@ -36,9 +44,16 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def writable(self):
-        """data/ 直下の .md だけ。それ以外はどう頼まれても書かない。"""
+        """data/ 直下の .md だけ。本人だけのものは除く。それ以外はどう頼まれても書かない。"""
         p = os.path.abspath(self.translate_path(self.path.split("?")[0]))
-        return p if os.path.dirname(p) == DATA and p.endswith(".md") else None
+        return p if os.path.dirname(p) == DATA and p.endswith(".md") and not private(p) else None
+
+    def send_head(self):
+        # 読むほうも同じ。名前の書き方を変えて頼まれても出さない
+        if private(self.translate_path(self.path)):
+            self.send_error(404)
+            return None
+        return super().send_head()
 
     def do_GET(self):
         p = self.writable()
