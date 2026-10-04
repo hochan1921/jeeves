@@ -26,9 +26,6 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .dot{width:6px;height:6px;border-radius:50%;background:#6ea87f;opacity:.85;
      margin-left:auto;align-self:center}
 .dot.off{background:#c0554f}
-.nav{font-size:13px;color:var(--muted);text-decoration:none;letter-spacing:.06em}
-.nav:hover{color:var(--ink)}
-header nav{display:flex;gap:16px}  /* 狭い画面では、ページへのリンクをまとめて右に折り返す */
 
 .greet{display:flex;align-items:center;gap:20px;margin-bottom:30px}
 .greet:empty{display:none}
@@ -108,14 +105,40 @@ header nav{display:flex;gap:16px}  /* 狭い画面では、ページへのリン
      font-size:13px;line-height:1.9}
 .err code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
      background:rgba(128,128,128,.14);padding:2px 6px;border-radius:4px}
+/* 全ページ共通の左メニュー。3 枚とも同じものを持つ。スマホでは上に寝かせる */
+body{padding-left:200px}
+.gnav{position:fixed;top:0;bottom:0;left:0;width:200px;padding:34px 14px;z-index:10;
+      display:flex;flex-direction:column;gap:2px;background:var(--panel);border-right:1px solid var(--line)}
+.gnav .brand{font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:.16em;padding:0 12px 24px}
+.gnav a{display:flex;align-items:center;gap:11px;font-size:14px;letter-spacing:.06em;color:var(--muted);
+        text-decoration:none;padding:9px 12px;border-radius:8px}
+.gnav a:hover{color:var(--ink);background:rgba(128,128,128,.08)}
+.gnav a[aria-current]{color:var(--ink);font-weight:600;background:rgba(128,128,128,.14)}
+.gnav svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;
+          stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:720px){
+  body{padding-left:0}
+  .gnav{position:sticky;bottom:auto;width:auto;flex-direction:row;padding:8px 12px;
+        border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}
+  .gnav .brand{display:none}
+  .gnav a{flex:none;padding:7px 12px}
+}
 </style>
 </head>
 <body>
+<nav class="gnav" aria-label="ページ">
+  <span class="brand">jeeves</span>
+  <a href="./" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>ダッシュボード</a>
+  <a href="study.html"><svg viewBox="0 0 24 24"><path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z"/><path d="M12 6.5v13"/></svg>教養</a>
+  <a href="study.html?d=映画"><svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M7.5 5.5v13M16.5 5.5v13M3.5 10h4M3.5 14h4M16.5 10h4M16.5 14h4"/></svg>映画</a>
+  <a href="study.html?d=ゲーム"><svg viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.4 1.8L14.5 14h-5l-1.1 1.3A3 3 0 0 1 3 13.5V12a4 4 0 0 1 4-4z"/><path d="M7.5 10.5v3M6 12h3"/><path d="M15.5 11.5h.01M17.5 12.5h.01"/></svg>ゲーム</a>
+  <a href="study.html?d=本"><svg viewBox="0 0 24 24"><path d="M5.5 18.5V5.5a2 2 0 0 1 2-2h11v14h-11a2 2 0 0 0-2 2 2 2 0 0 0 2 2h11"/><path d="M9.5 7.5h5"/></svg>本</a>
+  <a href="news.html"><svg viewBox="0 0 24 24"><path d="M4.5 4.5h12v15h-10a2 2 0 0 1-2-2z"/><path d="M16.5 8.5h3v9a2 2 0 0 1-2 2h-1"/><path d="M8 8.5h5M8 12h5M8 15.5h3"/></svg>ニュース</a>
+</nav>
 <div class="wrap">
   <header>
     <h1>ダッシュボード</h1>
     <span class="dot" id="dot" title="読込中"></span>
-    <nav><a class="nav" href="study.html">勉強 →</a><a class="nav" href="news.html">ニュース →</a></nav>
   </header>
   <section class="greet" id="greet"></section>
   <main id="main"></main>

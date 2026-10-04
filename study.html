@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>勉強</title>
+<title>教養</title>
 <style>
 :root{
   --bg:#faf8f4; --panel:#ffffff; --ink:#1d1b17; --muted:#847c6e; --line:#e7e1d6; --a:#7355a3;
@@ -24,9 +24,6 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .dot{width:6px;height:6px;border-radius:50%;background:#6ea87f;opacity:.85;
      margin-left:auto;align-self:center}
 .dot.off{background:#c0554f}
-.nav{font-size:13px;color:var(--muted);text-decoration:none;letter-spacing:.06em}
-.nav:hover{color:var(--ink)}
-header nav{display:flex;gap:16px}  /* 狭い画面では、ページへのリンクをまとめて右に折り返す */
 
 .page{display:grid;grid-template-columns:180px minmax(0,1fr);gap:40px}
 .side{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow-y:auto}
@@ -70,20 +67,60 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
   .side a{flex:none;border-left:0;border-bottom:2px solid transparent;padding:6px 12px}
   .side .items a{padding:6px 12px}
 }
+/* 全ページ共通の左メニュー。3 枚とも同じものを持つ。スマホでは上に寝かせる */
+body{padding-left:200px}
+.gnav{position:fixed;top:0;bottom:0;left:0;width:200px;padding:34px 14px;z-index:10;
+      display:flex;flex-direction:column;gap:2px;background:var(--panel);border-right:1px solid var(--line)}
+.gnav .brand{font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:.16em;padding:0 12px 24px}
+.gnav a{display:flex;align-items:center;gap:11px;font-size:14px;letter-spacing:.06em;color:var(--muted);
+        text-decoration:none;padding:9px 12px;border-radius:8px}
+.gnav a:hover{color:var(--ink);background:rgba(128,128,128,.08)}
+.gnav a[aria-current]{color:var(--ink);font-weight:600;background:rgba(128,128,128,.14)}
+.gnav svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;
+          stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:720px){
+  body{padding-left:0}
+  .gnav{position:sticky;bottom:auto;width:auto;flex-direction:row;padding:8px 12px;
+        border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}
+  .gnav .brand{display:none}
+  .gnav a{flex:none;padding:7px 12px}
+}
 </style>
 </head>
 <body>
+<nav class="gnav" aria-label="ページ">
+  <span class="brand">jeeves</span>
+  <a href="./"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>ダッシュボード</a>
+  <a href="study.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z"/><path d="M12 6.5v13"/></svg>教養</a>
+  <a href="study.html?d=映画"><svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M7.5 5.5v13M16.5 5.5v13M3.5 10h4M3.5 14h4M16.5 10h4M16.5 14h4"/></svg>映画</a>
+  <a href="study.html?d=ゲーム"><svg viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 4 4v1.5a3 3 0 0 1-5.4 1.8L14.5 14h-5l-1.1 1.3A3 3 0 0 1 3 13.5V12a4 4 0 0 1 4-4z"/><path d="M7.5 10.5v3M6 12h3"/><path d="M15.5 11.5h.01M17.5 12.5h.01"/></svg>ゲーム</a>
+  <a href="study.html?d=本"><svg viewBox="0 0 24 24"><path d="M5.5 18.5V5.5a2 2 0 0 1 2-2h11v14h-11a2 2 0 0 0-2 2 2 2 0 0 0 2 2h11"/><path d="M9.5 7.5h5"/></svg>本</a>
+  <a href="news.html"><svg viewBox="0 0 24 24"><path d="M4.5 4.5h12v15h-10a2 2 0 0 1-2-2z"/><path d="M16.5 8.5h3v9a2 2 0 0 1-2 2h-1"/><path d="M8 8.5h5M8 12h5M8 15.5h3"/></svg>ニュース</a>
+</nav>
 <div class="wrap">
   <header>
-    <h1>勉強</h1>
+    <h1>教養</h1>
     <span class="dot" id="dot" title="読込中"></span>
-    <nav><a class="nav" href="./">ダッシュボード →</a><a class="nav" href="news.html">ニュース →</a></nav>
   </header>
   <main id="main"></main>
 </div>
 
 <script>
-const BASE='data/study/';
+/* 映画・ゲーム・本は教養から独立した棚。左のメニューから study.html?d=<棚> で開く。
+   中身は data/<棚>.md（表紙）と data/<棚>/（1 作 1 ファイル）。教養と同じ形で映す */
+const SHELVES=['映画','ゲーム','本'];
+const SHELF=(d=>SHELVES.includes(d)?d:'')(new URLSearchParams(location.search).get('d'));
+const BASE=SHELF?'data/':'data/study/', NAME=SHELF||'教養';
+if (SHELF){
+  document.querySelector('h1').textContent=SHELF;
+  document.querySelectorAll('.gnav a').forEach(a=>a.toggleAttribute('aria-current',
+    new URL(a.href).search===location.search));
+  document.querySelector('.gnav a[aria-current]')?.setAttribute('aria-current','page');
+}
+/* #棚/作品 は棚のページへ、それ以外の #科目 は教養のページへ。今のページなら、そのまま */
+const jump = u => { let s=''; try{ s=decodeURIComponent(u.slice(1)).split('/')[0]; }catch(e){}
+  const d=SHELVES.includes(s)?s:'';
+  return d===SHELF ? u : (d?`study.html?d=${encodeURIComponent(d)}`:'study.html')+u; };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(s=>s.trim());
 
@@ -91,7 +128,7 @@ const cells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(s
 const inline = s => esc(s)
   .replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/g, (_,t,u)=>
     /^https?:\/\//.test(u) ? `<a href="${u}" target="_blank" rel="noopener">${t}</a>`
-    : u[0]==='#' ? `<a href="${u}">${t}</a>` : t)
+    : u[0]==='#' ? `<a href="${jump(u)}">${t}</a>` : t)
   .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
 /* 行で拾うのは 見出し・段落・箇条書き・表・区切り線だけ。ほかは地の文として出す */
@@ -141,7 +178,7 @@ const main=document.getElementById('main');
 
 function render(subs, items, path, md){
   const [sub, item]=path, name=item||sub;
-  document.title = name ? `${name}｜勉強` : '勉強';
+  document.title = name ? `${name}｜${NAME}` : NAME;
   if (!subs.length){
     main.innerHTML=`<p class="empty">科目はまだありません。<code>data/study/歴史.md</code> のように置くと、ここに並びます。</p>`;
     return;
@@ -155,15 +192,15 @@ function render(subs, items, path, md){
         `<a href="#${enc(sub)}/${enc(n)}"${n===item?' aria-current="page"':''}>${esc(n)}</a>`).join('')}</nav>`:''}
     </div>
     <article class="doc"><h1>${esc(m?m[1].trim():name)}</h1>${body.trim()?blocks(body)
-      :`<p class="empty">まだ何もありません。<code>data/study/${esc(path.join('/'))}.md</code> に書けば、ここに出ます。</p>`}
+      :`<p class="empty">まだ何もありません。<code>${BASE}${esc(path.join('/'))}.md</code> に書けば、ここに出ます。</p>`}
     </article>
   </div>
-  <p class="note">data/study/ をそのまま映しています。書くのは執事かエディタで。</p>`;
+  <p class="note">${SHELF?`data/${esc(SHELF)}.md と data/${esc(SHELF)}/`:'data/study/'} をそのまま映しています。書くのは執事かエディタで。</p>`;
 }
 
 function fail(){
   main.innerHTML=`<div class="err">
-    <b>data/study/ を読めませんでした。</b><br>
+    <b>${SHELF?`data/${esc(SHELF)}/`:'data/study/'} を読めませんでした。</b><br>
     起動：<code>python3 server.py</code> → <code>http://localhost:8765/study.html</code><br>
     （file:// で直接開くと読めません。かならずサーバー越しに）
   </div>`;
@@ -174,7 +211,8 @@ let last=null;
 async function tick(){
   const dot=document.getElementById('dot'), hash=location.hash;
   try{
-    const top=await list(BASE);
+    // 棚は data/ の目次を読まない（本人だけのファイルの名前まで見えるので）。表紙と棚のフォルダだけ
+    const top=SHELF?{mds:[SHELF], dirs:[SHELF]}:await list(BASE);
     const subs=[...new Set([...top.mds, ...top.dirs])].sort(ja);
     const [s, i]=wanted().split('/');
     const sub=subs.includes(s)?s:(subs[0]||'');
