@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """画面を出す。data/*.md への PUT だけ受ける。
+data/深堀り.md に「作業中...」が書かれたら、裏で執事（claude）を呼んで解説を書かせる。
 
 python3 -m http.server は書き込みを受けないので、その分だけを足したもの。
 台帳は data/*.md ひとつきり。画面は写しを持たず、直した内容をここへ書き戻す。
 本人だけのもの（memory.md / talk.md）は、読ませも書かせもしない。
 """
-import hashlib, os, socket, sys
+import hashlib, os, shutil, socket, subprocess, sys, threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, "data")
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 PRIVATE = ("memory.md", "talk.md")  # 画面は読まない。同じ回線の人にも見せない
+DIG = os.path.join(DATA, "深堀り.md")
+WAIT = "**深堀り**: 作業中..."
 
 
 def private(p):
@@ -32,6 +35,37 @@ def taken(port):
         return True
     except OSError:
         return False
+
+
+digging, again = threading.Lock(), False
+
+
+def dig():
+    """深堀りに作業中の件があれば、執事を裏で呼ぶ。一度にひとりだけ。呼んでいる間に増えた分は、終わってからもう一度。"""
+    global again
+    again = True
+    if not shutil.which("claude") or not digging.acquire(blocking=False):
+        return  # claude が無ければ作業中のまま。次に話したとき、執事が書く
+
+    def run():
+        global again
+        try:
+            while again:
+                again = False
+                if os.path.isfile(DIG) and WAIT in open(DIG, encoding="utf-8").read():
+                    # 頼むのは決まった一文だけ。作業中の件の中身は執事がファイルから読む
+                    subprocess.run(
+                        ["claude", "-p", "deepdive スキルを呼び出して、data/深堀り.md の作業中の件を書き換える",
+                         "--model", "sonnet",
+                         "--allowedTools", "Skill(deepdive)", "Read", "WebFetch", "WebSearch", "Edit(./data/深堀り.md)"],
+                        cwd=ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        timeout=900)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        finally:
+            digging.release()
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -85,11 +119,14 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(204)
         self.send_header("ETag", tag(body))
         self.end_headers()
+        if os.path.realpath(p).casefold() == os.path.realpath(DIG).casefold():
+            dig()
 
 
 if __name__ == "__main__":
     if taken(PORT):
         sys.exit(f"{PORT} 番はほかのアプリが使っています。python3 server.py {PORT + 1} のように番号を変えてください")
     os.makedirs(DATA, exist_ok=True)
+    dig()  # 止まっていた間に残った作業中の件があれば、ここで片づける
     print(f"ダッシュボード http://localhost:{PORT}  （同じ Wi-Fi の端末からも書き換えられます）")
     ThreadingHTTPServer(("", PORT), Handler).serve_forever()
