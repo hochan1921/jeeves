@@ -57,7 +57,8 @@ def dig():
                     subprocess.run(
                         ["claude", "-p", "deepdive スキルを呼び出して、data/深堀り.md の作業中の件を書き換える",
                          "--model", "sonnet",
-                         "--allowedTools", "Skill(deepdive)", "Read", "WebFetch", "WebSearch", "Edit(./data/深堀り.md)"],
+                         "--allowedTools", "Skill(deepdive)", "Read", "WebFetch", "WebSearch", "Edit(./data/深堀り.md)",
+                                          "Bash(python3 -I .claude/skills/deepdive/resolve.py:*)"],
                         cwd=ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                         timeout=900)
         except (OSError, subprocess.TimeoutExpired):
