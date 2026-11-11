@@ -105,7 +105,7 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
      font-size:13px;line-height:1.9}
 .err code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
      background:rgba(128,128,128,.14);padding:2px 6px;border-radius:4px}
-/* 全ページ共通の左メニュー。3 枚とも同じものを持つ。スマホでは上に寝かせる */
+/* 全ページ共通の左メニュー。3 枚とも同じものを持つ。スマホと iPad では上に寝かせる */
 body{padding-left:200px}
 .gnav{position:fixed;top:0;bottom:0;left:0;width:200px;padding:34px 14px;z-index:10;
       display:flex;flex-direction:column;gap:2px;background:var(--panel);border-right:1px solid var(--line)}
@@ -116,7 +116,7 @@ body{padding-left:200px}
 .gnav a[aria-current]{color:var(--ink);font-weight:600;background:rgba(128,128,128,.14)}
 .gnav svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;
           stroke-linecap:round;stroke-linejoin:round}
-@media (max-width:720px){
+@media (max-width:1100px){
   body{padding-left:0}
   .gnav{position:sticky;bottom:auto;width:auto;flex-direction:row;padding:8px 12px;
         border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}

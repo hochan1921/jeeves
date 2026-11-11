@@ -239,15 +239,47 @@ data/news/
 ### 毎朝の書き換え
 
 手順は `.claude/skills/news/SKILL.md`。Claude Code で `/news` と打てば、いつでも同じことをする。
-毎朝の分は Claude デスクトップの定期タスクに任せる。作業フォルダをこのリポジトリにして、1 つ足す。
+毎朝の分は Mac の launchd に任せる。`data/` は手元にしか無いので、クラウドの定期実行では届かない。
+`~/Library/LaunchAgents/com.jeeves.news.plist` を 1 枚置く。`<…>` は自分の場所に替える（`which claude` で分かる）。
 
-- いつ：毎朝（たとえば 7:00 なら `0 7 * * *`）
-- 指示：news スキル（`/news`）を呼び出して、`data/news/` を今日の分に書き換える
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.jeeves.news</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string><claude のパス></string>
+    <string>-p</string><string>news スキルを呼び出して、data/news/ を今日の分に書き換える</string>
+    <string>--model</string><string>sonnet</string>
+    <string>--allowedTools</string>
+    <string>Skill(news)</string><string>Read</string><string>Glob</string>
+    <string>WebFetch</string><string>WebSearch</string><string>Edit(./data/news/**)</string>
+  </array>
+  <key>WorkingDirectory</key><string><このリポジトリ></string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string><claude のあるフォルダ>:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>50</integer></dict>
+  <key>StandardOutPath</key><string><ホーム>/Library/Logs/jeeves-news.log</string>
+  <key>StandardErrorPath</key><string><ホーム>/Library/Logs/jeeves-news.log</string>
+</dict>
+</plist>
+```
 
-手順書の頭で軽いモデル（`model: sonnet` / `effort: medium`）を指定してある。効くのはスキルとして呼び出したときだけなので、
-指示は「ファイルを読め」ではなく「スキルを呼べ」と書く。
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jeeves.news.plist   # 登録
+launchctl kickstart gui/$(id -u)/com.jeeves.news                                # いま一度走らせる
+launchctl bootout gui/$(id -u)/com.jeeves.news                                  # 止める
+```
 
-アプリが閉じていた朝や、Mac が眠っていた朝は、次に開いたとき・目覚めたときに 1 回だけ走る。1 回ごとに Claude の利用枠を使う。
+- 裏の執事に許すのは、記事を読むことと `data/news/` を書き換えることだけ（深堀りと同じ）
+- 手順書の頭で軽いモデル（`model: sonnet` / `effort: medium`）を指定してある。効くのはスキルとして呼び出したときだけなので、
+  指示は「ファイルを読め」ではなく「スキルを呼べ」と書く
+- launchd はシェルの設定を読まない。`PATH` に `claude`（と `node`）の場所を入れておく
+- Mac が眠っていた朝は、目覚めたときに 1 回だけ走る。電源が切れていた朝は走らない。1 回ごとに Claude の利用枠を使う
+- 走った記録は `~/Library/Logs/jeeves-news.log`
 
 ### 深堀り
 

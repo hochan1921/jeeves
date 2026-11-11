@@ -47,6 +47,9 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .doc a{color:var(--a);text-underline-offset:3px;text-decoration-thickness:1px}
 .doc strong{font-weight:600}
 .tbl{overflow-x:auto}
+.doc figure{margin:6px 0 22px}
+.doc figure img{display:block;max-width:100%;max-height:70vh;width:auto;height:auto;border-radius:4px}
+.doc figcaption{font-size:12px;color:var(--muted);margin-top:6px}
 .doc table{border-collapse:collapse;font-size:13px;line-height:1.6}
 .doc th,.doc td{text-align:left;vertical-align:top;padding:7px 18px 7px 0;border-bottom:1px solid var(--line)}
 .doc th{color:var(--muted);font-weight:600;white-space:nowrap}
@@ -58,16 +61,16 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
 .err{background:var(--panel);border:1px solid #c0554f;border-radius:10px;padding:18px 20px;
      font-size:13px;line-height:1.9}
 
-/* スマホでは左ペインを上に寝かせる */
-@media (max-width:720px){
-  .page{grid-template-columns:1fr;gap:22px}
+/* スマホと iPad では左ペインを上に寝かせる */
+@media (max-width:1100px){
+  .page{grid-template-columns:minmax(0,1fr);gap:22px}
   .side{position:static;max-height:none;overflow:visible}
   .side nav{flex-direction:row;overflow-x:auto;border-bottom:1px solid var(--line)}
   .side .items{margin-top:4px}
   .side a{flex:none;border-left:0;border-bottom:2px solid transparent;padding:6px 12px}
   .side .items a{padding:6px 12px}
 }
-/* 全ページ共通の左メニュー。3 枚とも同じものを持つ。スマホでは上に寝かせる */
+/* 全ページ共通の左メニュー。3 枚とも同じものを持つ。スマホと iPad では上に寝かせる */
 body{padding-left:200px}
 .gnav{position:fixed;top:0;bottom:0;left:0;width:200px;padding:34px 14px;z-index:10;
       display:flex;flex-direction:column;gap:2px;background:var(--panel);border-right:1px solid var(--line)}
@@ -78,7 +81,7 @@ body{padding-left:200px}
 .gnav a[aria-current]{color:var(--ink);font-weight:600;background:rgba(128,128,128,.14)}
 .gnav svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;
           stroke-linecap:round;stroke-linejoin:round}
-@media (max-width:720px){
+@media (max-width:1100px){
   body{padding-left:0}
   .gnav{position:sticky;bottom:auto;width:auto;flex-direction:row;padding:8px 12px;
         border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}
@@ -131,7 +134,7 @@ const inline = s => esc(s)
     : u[0]==='#' ? `<a href="${jump(u)}">${t}</a>` : t)
   .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
-/* 行で拾うのは 見出し・段落・箇条書き・表・区切り線だけ。ほかは地の文として出す */
+/* 行で拾うのは 見出し・段落・箇条書き・表・区切り線・画像だけ。ほかは地の文として出す */
 function blocks(md){
   const out=[]; let para=[], list=null, rows=null;
   const flush=()=>{
@@ -147,6 +150,9 @@ function blocks(md){
     if (!t){ flush(); continue; }
     if ((m=t.match(/^(#{1,4})\s+(.*)$/))){ flush(); const n=m[1].length; out.push(`<h${n}>${inline(m[2])}</h${n}>`); continue; }
     if (/^(-{3,}|\*{3,})$/.test(t)){ flush(); out.push('<hr>'); continue; }
+    // 画像の場所は https か、手元の data/ の下
+    if ((m=t.match(/^!\[([^\]]*)\]\(((?:https:\/\/|data\/)[^()\s]+)\)$/))){ flush();
+      out.push(`<figure><img src="${esc(m[2])}" alt="${esc(m[1])}" loading="lazy"><figcaption>${inline(m[1])}</figcaption></figure>`); continue; }
     if (t.startsWith('|')){
       const c=cells(t); if (c.every(x=>/^:?-{2,}:?$/.test(x))) continue;
       if (!rows){ flush(); rows=[]; } rows.push(c); continue;
