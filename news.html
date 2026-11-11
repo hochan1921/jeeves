@@ -33,7 +33,7 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .tabs a[aria-current]{color:var(--ink);font-weight:600;border-color:var(--a)}
 
 .doc{max-width:720px;font-size:15px;line-height:1.85}
-.aim{font-size:13px;line-height:1.8;color:var(--muted);margin-bottom:8px}
+.aim{font-size:13px;line-height:1.8;color:var(--muted);margin-bottom:18px}
 .doc h1{font-size:22px;letter-spacing:.08em;margin:0 0 20px}
 .doc h2{font-family:var(--serif);font-size:18px;font-weight:600;margin:32px 0 12px;
         padding-bottom:6px;border-bottom:1px solid var(--line)}
@@ -50,12 +50,49 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em;
 .doc th,.doc td{text-align:left;vertical-align:top;padding:7px 18px 7px 0;border-bottom:1px solid var(--line)}
 .doc th{color:var(--muted);font-weight:600;white-space:nowrap}
 
+/* ニュースの一覧。左に日付、右にその日の話。1 件は 見出し・要点・出典 の 3 段に積む */
+.feed{display:grid;grid-template-columns:auto minmax(0,1fr)}
+.feed>*{grid-column:1/-1}
+.feed>h2,.feed>ul{margin:0;padding:22px 0 4px;border:0;border-top:1px solid var(--line)}
+.feed>h2{grid-column:1;padding:22px 32px 22px 0;font-size:17px;line-height:1.55;white-space:nowrap}
+.feed>h2 small{display:block;font-family:var(--sans);font-size:12px;font-weight:400;letter-spacing:.06em;
+               color:var(--muted)}
+.feed>h2 .now{color:var(--a);font-weight:600}
+.feed>ul{grid-column:2;list-style:none}
+.feed li{margin:0 0 20px;font-size:14px;color:var(--muted)}
+.feed li>strong{display:block;font-size:16px;line-height:1.55;color:var(--ink)}
+.feed .sum{display:block;margin-top:3px;line-height:1.75;color:var(--ink);opacity:.8}
+.by{display:flex;align-items:center;gap:12px;margin-top:6px;font-size:12px;letter-spacing:.04em}
+.doc .by a{color:var(--muted);text-decoration:none}
+.doc .by a:hover{color:var(--ink);text-decoration:underline}
+.by a::after{content:' ↗'}
+
 /* 各ニュースの「深堀り」。押すと深堀りのタブに「作業中...」で入り、執事が解説を書く */
-.dig{font:inherit;font-size:12px;letter-spacing:.06em;color:var(--muted);background:none;
-     border:1px solid var(--line);border-radius:999px;padding:1px 10px;margin-left:8px;cursor:pointer;
-     vertical-align:1px}
+.dig{font:inherit;color:var(--muted);background:none;
+     border:1px solid var(--line);border-radius:999px;padding:1px 10px;cursor:pointer}
 .dig:hover{color:var(--ink);border-color:var(--muted)}
 .dig:disabled{cursor:default;opacity:.6}
+
+/* 深堀りは 1 件ずつ畳んで並べる。見出しを押すと開く */
+.digs details{border-top:1px solid var(--line)}
+.digs details[open]{padding-bottom:14px}
+.digs summary{position:relative;list-style:none;cursor:pointer;padding:16px 36px 16px 0}
+.digs summary::-webkit-details-marker{display:none}
+.digs summary::after{content:'';position:absolute;right:8px;top:24px;width:7px;height:7px;
+                     border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.digs details[open]>summary::after{top:28px;transform:rotate(-135deg)}
+.digs summary strong{display:block;font-size:16px;line-height:1.55}
+.digs summary span{display:block;margin-top:3px;font-size:13px;line-height:1.7;color:var(--muted)}
+.digs summary a{color:inherit}
+.digs h3{font-size:12px;letter-spacing:.12em;color:var(--muted);margin:20px 0 8px}
+
+/* スマホでは日付を上に寝かせる */
+@media (max-width:600px){
+  .feed{display:block}
+  .feed>h2{padding-bottom:0}
+  .feed>h2 small{display:inline;margin-left:10px}
+  .feed>ul{border-top:0;padding-top:12px}
+}
 
 .empty{font-size:13px;color:var(--muted)}
 .note{margin-top:48px;font-size:12px;color:var(--muted);opacity:.75}
@@ -166,26 +203,56 @@ function render(ks, k, md){
   // 先頭の「# 題」はタブと同じなので出さない。「---」より上はねらいで、細く出す
   const lines=md.replace(/^\s*#[ \t]+.*/,'').split(/\r?\n/), cut=lines.findIndex(l=>/^\s*-{3,}\s*$/.test(l));
   const aim=lines.slice(0,Math.max(cut,0)).join('\n'), news=lines.slice(cut+1).join('\n');
+  const dig=k===DIG, body=news.trim()?(dig?digs(news):blocks(news))  // digs は、置き換える前の画面から開いている件を拾う
+      :dig?'<p class="empty">まだありません。ニュースの「深堀り」を押すと、ここに解説が入ります。</p>'
+      :'<p class="empty">まだありません。毎朝の更新で、ここに入ります。</p>';
   main.innerHTML=`<nav class="tabs">${ks.map(n=>
       `<a href="#${enc(n)}"${n===k?' aria-current="page"':''}>${esc(n)}</a>`).join('')}</nav>
-    <article class="doc">${aim.trim()?`<div class="aim">${blocks(aim)}</div>`:''}${news.trim()?blocks(news)
-      :k===DIG?'<p class="empty">まだありません。ニュースの「深堀り」を押すと、ここに解説が入ります。</p>'
-      :'<p class="empty">まだありません。毎朝の更新で、ここに入ります。</p>'}
+    <article class="doc ${dig?'digs':'feed'}">${aim.trim()?`<div class="aim">${blocks(aim)}</div>`:''}${body}
     </article>
-    <p class="note">${k===DIG?'data/深堀り.md をそのまま映しています。「作業中...」の件は、執事が裏で解説に書き換えます。'
+    <p class="note">${dig?'data/深堀り.md をそのまま映しています。「作業中...」の件は、執事が裏で解説に書き換えます。'
       :'data/news/ をそのまま映しています。毎朝、執事が書き換えます。'}</p>`;
-  if (k===DIG) return;
-  // 太字の見出しで始まる行にだけ、深堀りのボタンを付ける。行は書かれた順に li と対になる
+  if (dig) return;
+  // 日付の見出しは「11月11日／水曜」に。今日の分には印を付ける
+  const today=new Date().toLocaleDateString('sv');  // sv は 2026-11-11 の形で返す
+  main.querySelectorAll('.feed > h2').forEach(h=>{
+    const m=h.textContent.match(/^(\d{4}-(\d\d)-(\d\d))\s*(?:\((.+)\))?$/); if (!m) return;
+    h.innerHTML=`${+m[2]}月${+m[3]}日<small>${m[4]?esc(m[4])+'曜':''}${
+      m[1]===today?' <span class="now">今日</span>':''}</small>`;
+  });
+  // 太字の見出しで始まる行が 1 件。見出し・要点・出典の 3 段に積み、出典の横に深堀りのボタンを置く。
+  // 行は書かれた順に li と対になる
   let day='';
   const items=news.split(/\r?\n/).flatMap(l=>{
     const h=l.match(/^\s*##\s+(\S+)/); if (h) day=h[1];
     return /^\s*[-*]\s+\*\*/.test(l) ? [{day, line:l.trim().replace(/^[-*]\s+/,'')}] : [];
   });
-  [...main.querySelectorAll('.doc > ul > li')].filter(li=>li.firstChild?.nodeName==='STRONG')
-    .forEach((li,i)=>{ const it=items[i]; if (!it) return;
-      const b=document.createElement('button'); b.className='dig'; b.textContent='深堀り';
-      b.onclick=()=>{ b.disabled=true; ask(k, it).catch(()=>{ b.disabled=false; b.textContent='もう一度'; }); };
-      li.append(b); });
+  [...main.querySelectorAll('.feed > ul > li')].filter(li=>li.firstChild?.nodeName==='STRONG')
+    .forEach((li,i)=>{ const it=items[i], src=li.lastChild.nodeName==='A'?li.lastChild:null;
+      const sum=document.createElement('span'), by=document.createElement('span');
+      sum.className='sum'; by.className='by';
+      sum.append(...[...li.childNodes].slice(1).filter(n=>n!==src));
+      if (sum.firstChild?.nodeType===3) sum.firstChild.data=sum.firstChild.data.replace(/^[\s—。]+/,'');
+      if (src) by.append(src);
+      if (it){
+        const b=document.createElement('button'); b.className='dig'; b.textContent='深堀り';
+        b.onclick=()=>{ b.disabled=true; ask(k, it).catch(()=>{ b.disabled=false; b.textContent='もう一度'; }); };
+        by.append(b);
+      }
+      li.append(...(sum.textContent.trim()?[sum]:[]), by); });
+}
+
+/* 深堀りは 1 件ずつ畳む。見出しの下の 1 行（日付／種類／要点）までを見せ、押すと要約と解説が開く。
+   開いていた件は、書き換わっても開いたまま。タブに入った直後は、一番上の 1 件だけ開く */
+function digs(md){
+  const open=new Set([...main.querySelectorAll('details[open]')].map(d=>d.dataset.t));
+  let top=!main.querySelector('details');
+  return md.split(/^(?=##[ \t])/m).map(s=>{
+    const m=s.match(/^##[ \t]+(.*)([\s\S]*)$/); if (!m) return blocks(s);
+    const [by,...rest]=m[2].trim().split(/\r?\n[ \t]*\r?\n/), on=open.has(m[1])||top; top=false;
+    return `<details data-t="${esc(m[1])}"${on?' open':''}><summary><strong>${inline(m[1])}</strong><span>${
+      by.split(/\r?\n/).map(inline).join('<br>')}</span></summary>${blocks(rest.join('\n\n'))}</details>`;
+  }).join('');
 }
 
 /* 深堀りの件を「作業中...」で data/深堀り.md の --- のすぐ下に足す。同じ見出しがもうあれば足さない。
@@ -228,7 +295,7 @@ async function tick(){
     let md='';
     const f=await fetch(k===DIG?DIGFILE:BASE+enc(k)+'.md',{cache:'no-store'}); if (f.ok) md=await f.text();
     if (hash!==location.hash) return;  // 読んでいる間に開く先が替わった。新しいほうに任せる
-    const key=JSON.stringify([ks, k, md]);
+    const key=JSON.stringify([ks, k, md, new Date().toDateString()]);  // 日が替われば「今日」の印も替わる
     if (key!==last){ last=key; render(ks, k, md); }
     dot.classList.remove('off'); dot.title='追従中';
   }catch(e){
